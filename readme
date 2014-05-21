@@ -1,0 +1,16 @@
+TXS-Crunch
+==========
+Version: 0.1
+Author: Charlie FG
+Modified: 2014/05/21
+
+Carrotsrc.org
+
+
+TXS-Crunch is planned to be an audio signal analysis server that will generate different forms of data which will be passed over to the visuals rig; spreading the load as it were.
+
+Currently using the code that was written to get my head round working with the ALSA API. It is some horrible busy loop at the moment that will choke the CPU but stage one is at least working on some level- pulling the PCM data off the soundcard.
+
+Changelog
+=========
+- Imported previously written PCM read/write code.
