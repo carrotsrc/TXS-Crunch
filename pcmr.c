@@ -13,36 +13,17 @@
 * See the License for the specific language governing permissions and
 * limitations under the License.
 */
-#include <alsa/asoundlib.h>
-#include <pthread.h>
 
+#include "pcmr.h"
 
 #define RING_SIZE 64
-#define BUF_SIZE 64
-#define FRPP 64
+#define BUF_SIZE 7
 
-#define STREAM_TERM 0
-#define STREAM_RUN 1
 
 #define BATCH_EMPTY 0
 #define BATCH_READY 1
 #define BATCH_PROCESSED 2
 
-
-typedef struct stream_desc_s {
-	snd_pcm_t *in;
-	snd_pcm_t *out;
-	pthread_mutex_t *mutex;
-	short *buffer;
-	short nbuf;
-	short sig;
-	snd_pcm_uframes_t *frames;
-	int sample;
-	short dir;
-	int usp;
-	long wp;
-	int batch;
-} stream_desc_t;
 
 void printState(snd_pcm_state_t state)
 {
@@ -77,7 +58,8 @@ void printState(snd_pcm_state_t state)
 	}
 }
 
-snd_pcm_t *initStream(const char *device, snd_pcm_stream_t stream, unsigned int sample, snd_pcm_uframes_t *frames, snd_pcm_format_t format, short channels, int *usp)
+snd_pcm_t *initStream(const char *device, snd_pcm_stream_t stream, unsigned int sample,
+		snd_pcm_uframes_t *frames, snd_pcm_format_t format, short channels, int *usp)
 {
 	snd_pcm_t *handle;
 	snd_pcm_hw_params_t *params;
@@ -223,15 +205,15 @@ void *processInStream(void *sdesc)
 	int bindex = 0;
 	int pindex = 0;
 	int pnum = 0;
-	short *lbuffer = malloc(pbytes*BUF_SIZE);
-	int pshorts = *stream_d->frames*2*2;
+	short *lbuffer = malloc(pbytes<<BUF_SIZE);
+	int pshorts = *stream_d->frames<<3;
 
 	gettimeofday(&stime, NULL);
 
 	size_t test;
 
 	while(stream_d->sig > STREAM_TERM) {
-		if(bindex == BUF_SIZE) {
+		if(bindex == 1<<BUF_SIZE) {
 			fprintf(stderr, "Buffer overflow\n");
 			stream_d->sig = STREAM_TERM;
 			break;
@@ -274,7 +256,7 @@ void *processInStream(void *sdesc)
 				}
 
 				bindex = 0;
-				lbuffer = malloc(pbytes*BUF_SIZE);
+				lbuffer = malloc(pbytes<<BUF_SIZE);
 
 				// new batch ready
 				stream_d->batch = BATCH_READY;
@@ -306,46 +288,3 @@ stream_desc_t *initStreamDesc(pthread_mutex_t *mutex)
 	return s;
 }
 
-int main(int argc, char *argv[])
-{
-	snd_pcm_uframes_t frames = FRPP;
-	unsigned int sample = 44100;
-	pthread_t inThread, outThread;
-	pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
-
-	stream_desc_t *stream_d = initStreamDesc(&mutex);
-	stream_d->sample = sample;
-	stream_d->frames = &frames;
-
-	/*if((stream_d->out = initStream("default", SND_PCM_STREAM_PLAYBACK, sample, stream_d->frames, SND_PCM_FORMAT_S16_LE, 2, NULL)) == NULL) {
-		fprintf(stderr, "Failed to initialize output PCM\n");
-		exit(1);
-	}*/
-
-	if((stream_d->in = initStream("default", SND_PCM_STREAM_CAPTURE, sample, stream_d->frames, SND_PCM_FORMAT_S16_LE, 2, &stream_d->usp)) == NULL) {
-		fprintf(stderr, "Failed to initialize input PCM\n");
-		exit(1);
-	}
-
-	printf("PCMrw\n---\n");
-	printf("Time of period: %dus\n", stream_d->usp);
-	long pbytes = sizeof(short)*(int)*stream_d->frames*2;
-	printf("Period Size: %lu bytes\n", pbytes);
-	pbytes = sizeof(short)*(int)*stream_d->frames*2 * (1000000/stream_d->usp);
-	printf("Transfer rate: %lu Kbps\n", (pbytes/1000)*8);
-
-	if(pthread_create(&inThread, NULL, processInStream, (void*)stream_d) != 0)
-		printf("Failed to generate thread\n");
-
-	if(pthread_create(&outThread, NULL, processOutStream, (void*)stream_d) != 0)
-		printf("Failed to generate thread\n");
-
-	char buf[10];
-	while(stream_d->sig == STREAM_RUN) {
-		fgets(buf, 10, stdin);
-		if(strcmp(buf, "q\n") == 0)
-			stream_d->sig = STREAM_TERM;
-	}
-	draincloseStream(stream_d->in);
-	//draincloseStream(stream_d->out);
-}

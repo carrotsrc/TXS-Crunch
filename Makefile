@@ -1,7 +1,10 @@
-pcmrw.o:
-	gcc -ggdb -c pcmrw.c -o obj/pcmrw.o
+pcmr.o:
+	gcc -ggdb -c pcmr.c -o obj/pcmr.o
 
-pcmrw: pcmrw.o
-	gcc -lasound -lpthread -o crunch obj/pcmrw.o
+entry.o:
+	gcc -ggdb -c entry.c -o obj/entry.o
+
+full: pcmr.o entry.o
+	gcc -lasound -lpthread -o crunch obj/pcmr.o obj/entry.o
 
 
