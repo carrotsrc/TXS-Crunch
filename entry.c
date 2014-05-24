@@ -16,9 +16,10 @@
 #include "stream.h"
 #include "bufproc.h"
 
+
 int main(int argc, char *argv[])
 {
-	pthread_t inThread, outThread;
+	pthread_t inThread, outThread; /* these need to be moved into the buffer proc */
 	snd_pcm_uframes_t frames = FRPP;
 	unsigned int sample = 44100;
 
@@ -41,13 +42,12 @@ int main(int argc, char *argv[])
 	
 	startBufferThreads((void*) stream_d, &inThread, &outThread);
 	char buf[10];
-	while(stream_d->sig == STREAM_RUN) {
+	while(stream_d->sig&STREAM_RUN) {
 		fgets(buf, 10, stdin);
 		if(strcmp(buf, "q\n") == 0)
-			stream_d->sig = STREAM_TERM;
+			stream_d->sig ^= STREAM_TERM;
 	}
 
-	// exit the threads gracefully
+	/* exit the threads gracefully */
 	endBufferThreads(&inThread, &outThread);
-	draincloseStream(stream_d->in);
 }

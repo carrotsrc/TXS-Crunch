@@ -16,8 +16,6 @@
 
 #include "stream.h"
 
-#define RING_SIZE 64
-
 void printState(snd_pcm_state_t state)
 {
 	switch(state) {
@@ -128,7 +126,7 @@ snd_pcm_t *initStream(const char *device, snd_pcm_stream_t stream, unsigned int 
 		*usp = val;
 	}
 
-	//snd_pcm_hw_params_free(params);
+	/*snd_pcm_hw_params_free(params);*/
 
 	return handle;
 }

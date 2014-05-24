@@ -19,8 +19,8 @@
 #include <alsa/asoundlib.h>
 #include <pthread.h>
 
-#define STREAM_TERM 0
 #define STREAM_RUN 1
+#define STREAM_TERM 1
 
 #define BATCH_EMPTY 0
 #define BATCH_READY 1
