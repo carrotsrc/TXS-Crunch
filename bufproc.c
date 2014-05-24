@@ -134,19 +134,24 @@ static void *processInStream(void *sdesc)
 
 }
 
-int startBufferThreads(stream_desc_t *stream_d)
+int startBufferThreads(stream_desc_t *stream_d, pthread_t *inThread, pthread_t *outThread)
 {
 	stream_d->mutex = malloc(sizeof(pthread_mutex_t));
 	pthread_mutex_init(stream_d->mutex, NULL);
 	
-	pthread_t inThread, outThread;
-	if(pthread_create(&inThread, NULL, &processInStream, (void*)stream_d) != 0) {
+	if(pthread_create(inThread, NULL, &processInStream, (void*)stream_d) != 0) {
 		return -1;
 	}
 
-	if(pthread_create(&outThread, NULL, &processOutStream, (void*)stream_d) != 0) {
+	if(pthread_create(outThread, NULL, &processOutStream, (void*)stream_d) != 0) {
 		return -1;
 	}
 
 	return 0;
+}
+
+int endBufferThreads(pthread_t *inThread, pthread_t *outThread)
+{
+	pthread_join(*inThread, NULL);
+	pthread_join(*outThread, NULL);
 }

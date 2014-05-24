@@ -15,5 +15,6 @@
 */
 #ifndef BUFPROC_H_
 #define BUFPROC_H_
-int startBufferThreads(stream_desc_t *);
+int startBufferThreads(stream_desc_t *stream_d, pthread_t *inThread, pthread_t *outThread);
+int endBufferThreads(pthread_t *inThread, pthread_t *outThread);
 #endif
