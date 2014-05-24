@@ -14,16 +14,9 @@
 * limitations under the License.
 */
 
-#include "pcmr.h"
+#include "stream.h"
 
 #define RING_SIZE 64
-#define BUF_SIZE 7
-
-
-#define BATCH_EMPTY 0
-#define BATCH_READY 1
-#define BATCH_PROCESSED 2
-
 
 void printState(snd_pcm_state_t state)
 {
@@ -159,120 +152,6 @@ void draincloseStream(snd_pcm_t *handle)
 	snd_pcm_close(handle);
 }
 
-void *processOutStream(void *sdesc)
-{
-	FILE *fp = fopen("streamed.raw", "wb");
-	stream_desc_t *stream_d = (stream_desc_t*)sdesc;
-	int pshorts = *stream_d->frames*2*sizeof(short);
-	int bufs;
-	size_t test;
-	int periods = 0;
-	int avg = 0;
-	int total = 0;
-	while(stream_d->sig > STREAM_TERM) {
-		if(pthread_mutex_lock(stream_d->mutex) == 0) {
-			if(stream_d->nbuf > 0) {
-				periods += stream_d->nbuf;
-				total++;
-				avg = periods/total;
-
-				test = fwrite(stream_d->buffer, 1, pshorts*stream_d->nbuf, fp);
-				//fprintf(stdout, "@ %lu -- %d / %d\n", stream_d->wp, (int)test, stream_d->nbuf);
-				stream_d->nbuf = 0;
-				free(stream_d->buffer);
-				stream_d->batch = BATCH_PROCESSED;
-			}
-			pthread_mutex_unlock(stream_d->mutex);
-		}
-	}
-	printf("Closing file pointer\n");
-	fclose(fp);
-	printf("Avg period: %d\n", avg);
-}
-
-void *processInStream(void *sdesc)
-{
-	struct timeval stime, etime;
-
-	stream_desc_t *stream_d = (stream_desc_t*)sdesc;
-	snd_pcm_prepare(stream_d->in);
-
-	int nframe;
-	int pbytes = sizeof(short)*(int)*stream_d->frames*2;
-	stream_d->buffer = malloc(pbytes);
-
-	// local buffer and index
-	int bindex = 0;
-	int pindex = 0;
-	int pnum = 0;
-	short *lbuffer = malloc(pbytes<<BUF_SIZE);
-	int pshorts = *stream_d->frames<<3;
-
-	gettimeofday(&stime, NULL);
-
-	size_t test;
-
-	while(stream_d->sig > STREAM_TERM) {
-		if(bindex == 1<<BUF_SIZE) {
-			fprintf(stderr, "Buffer overflow\n");
-			stream_d->sig = STREAM_TERM;
-			break;
-		}
-
-		// added period to local buffer
-		nframe = snd_pcm_readi(stream_d->in, lbuffer+(bindex*(*stream_d->frames)*2), *stream_d->frames);
-		bindex++;
-		stream_d->wp++;
-		if(pthread_mutex_trylock(stream_d->mutex) == 0) {
-			// thread has locked mutex so nothing is being processed
-			// by other thread
-			// copy everything into shared buffer
-			if(nframe < 0) {
-			      fprintf(stderr,
-				      "error from read: %s\n",
-				      snd_strerror(nframe));
-				if(nframe == -EPIPE) {
-					fprintf(stderr, "Overrun occured on capture\n");
-					snd_pcm_prepare(stream_d->in);
-				}
-				else
-					fprintf(stderr, "Unknown error on capture buffer\n");
-
-				// reset the last buffer
-				bindex--;
-				stream_d->wp--;
-				pthread_mutex_unlock(stream_d->mutex);
-				continue;
-			}
-
-			if(stream_d->batch == BATCH_PROCESSED) {
-				// last batch has been processed
-				stream_d->buffer = lbuffer;
-				stream_d->nbuf = bindex;
-
-				if(pindex < bindex) {
-					pindex = bindex;
-					pnum++;
-				}
-
-				bindex = 0;
-				lbuffer = malloc(pbytes<<BUF_SIZE);
-
-				// new batch ready
-				stream_d->batch = BATCH_READY;
-			}
-			pthread_mutex_unlock(stream_d->mutex);
-		}
-	}
-	gettimeofday(&etime, NULL);
-
-	double period = ((((double)etime.tv_sec*1000000) + (double)etime.tv_usec) - (((double)stime.tv_sec*1000000) + (double)stime.tv_usec));
-	printf("Closing input stream\n");
-	printf("Period: %F seconds\n", period/1000000);
-	printf("Peak buffer size: %d period(s)\n", pindex);
-	printf("Peak push: %d\n", pnum);
-
-}
 
 stream_desc_t *initStreamDesc(pthread_mutex_t *mutex)
 {
