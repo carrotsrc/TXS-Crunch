@@ -47,7 +47,7 @@ struct stream_desc_s {
 	int batch;
 };
 
-stream_desc_t *initStreamDesc(pthread_mutex_t *);
+stream_desc_t *initStreamDesc();
 snd_pcm_t *initStream(const char *, snd_pcm_stream_t, unsigned int, snd_pcm_uframes_t *, snd_pcm_format_t, short, int *);
 void draincloseStream(snd_pcm_t *);
 #endif

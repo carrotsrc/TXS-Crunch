@@ -153,12 +153,11 @@ void draincloseStream(snd_pcm_t *handle)
 }
 
 
-stream_desc_t *initStreamDesc(pthread_mutex_t *mutex)
+stream_desc_t *initStreamDesc()
 {
 	stream_desc_t *s = malloc(sizeof(stream_desc_t));
 	s->buffer = NULL;
 	s->nbuf = 0;
-	s->mutex = mutex;
 	s->sig = STREAM_RUN;
 	s->frames = malloc(sizeof(snd_pcm_uframes_t));
 	s->dir = 1;
