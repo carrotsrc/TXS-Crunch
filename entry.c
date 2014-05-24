@@ -21,7 +21,7 @@ int main(int argc, char *argv[])
 	snd_pcm_uframes_t frames = FRPP;
 	unsigned int sample = 44100;
 
-	stream_desc_t *stream_d = initStreamDesc(&mutex);
+	stream_desc_t *stream_d = initStreamDesc();
 	stream_d->sample = sample;
 	stream_d->frames = &frames;
 
